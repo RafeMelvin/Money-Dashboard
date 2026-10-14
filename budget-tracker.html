@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Tracker</title>
+<style>
+  :root{
+    --bg:#05070f; --panel:#0b0f1c; --panel2:#0e1424; --line:#1b2540;
+    --cyan:#22d3ee; --violet:#8b5cf6; --green:#34d399; --red:#fb7185; --amber:#fbbf24;
+    --text:#eef2fa; --muted:#8b98b8; --faint:#5b6685;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh; padding:28px 32px 60px;
+    background-image:
+      radial-gradient(900px 500px at 50% -10%, rgba(34,211,238,.07), transparent 60%),
+      linear-gradient(rgba(60,90,150,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(60,90,150,.05) 1px, transparent 1px);
+    background-size:auto,54px 54px,54px 54px;
+  }
+  .wrap{max-width:1280px; margin:0 auto;}
+  header{display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:22px;}
+  h1{font-size:30px; letter-spacing:2px; font-weight:800;}
+  h1 .accent{color:var(--cyan);}
+  .sub{color:var(--muted); font-size:13px; margin-top:6px; letter-spacing:1px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:22px;}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+        border-radius:14px; padding:16px 18px;}
+  .card .label{font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:8px;}
+  .card .big{font-size:26px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .up{color:var(--green);} .down{color:var(--red);} .flat{color:var(--muted);}
+  button{background:rgba(34,211,238,.12); border:1px solid var(--cyan); color:var(--cyan);
+    border-radius:8px; padding:9px 16px; font-size:14px; cursor:pointer; font-weight:600; letter-spacing:.5px;}
+  button:hover{background:rgba(34,211,238,.22);}
+  button.ghost{background:transparent; border-color:var(--line); color:var(--muted);}
+  button.ghost:hover{color:var(--text); border-color:var(--faint);}
+  button.mini{padding:4px 10px; font-size:13px; line-height:1.4;}
+  button.del{border-color:var(--line); color:var(--faint);}
+  button.del:hover{color:var(--red); border-color:var(--red); background:rgba(251,113,133,.08);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;}}
+  .section{margin-bottom:14px;}
+  .section h3{font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px;}
+  .table-scroll{overflow-x:auto; border-radius:14px;}
+  table.mini{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line);
+        border-radius:14px; overflow:hidden; font-variant-numeric:tabular-nums; font-size:14px; min-width:0;}
+  table.mini thead th{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted);
+    text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); font-weight:600; white-space:nowrap;}
+  table.mini thead th:first-child{text-align:left;}
+  table.mini tbody td{padding:8px 10px; border-bottom:1px solid rgba(27,37,64,.6); text-align:right; white-space:normal;}
+  table.mini tbody td:first-child{text-align:left;}
+  tr.drow{cursor:pointer;}
+  tr.drow:hover{background:rgba(34,211,238,.04);}
+  .cname{color:var(--muted); font-size:12.5px;}
+  .gl-sub{display:block; font-size:12px; color:var(--muted);}
+  input.num{background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px;
+    padding:7px 9px; font-size:14px; width:92px; text-align:right; font-variant-numeric:tabular-nums;}
+  input.num:focus{outline:none; border-color:var(--cyan);}
+  input.txt{background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px;
+    padding:8px 10px; font-size:14px; min-width:0;}
+  input.txt:focus{outline:none; border-color:var(--cyan);}
+  select{background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px;
+    padding:8px 10px; font-size:14px;}
+  select:focus{outline:none; border-color:var(--cyan);}
+  tr.txndrawer td{background:rgba(10,14,28,.85); text-align:left; font-size:13.5px; color:var(--muted); white-space:normal;}
+  .txn-box{padding:8px 4px;}
+  .txn-box h4{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin:10px 0 8px;}
+  .txn-box h4:first-child{margin-top:0;}
+  .txn-row{display:flex; align-items:center; gap:10px; padding:7px 2px; border-bottom:1px solid rgba(27,37,64,.6); font-size:14px;}
+  .txn-row .d{flex:1; color:var(--text);}
+  .txn-row .a{font-variant-numeric:tabular-nums; color:var(--red);}
+  .form-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center;}
+  .form-row input.txt{flex:1 1 110px;}
+  .form-row input.num{width:100px;}
+  .hbar{height:14px; background:var(--panel); border:1px solid var(--line); border-radius:7px; overflow:hidden; margin:8px 0 4px;}
+  .hbar>div{height:100%; border-radius:6px; transition:width .4s;}
+  .hbar-lbl{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-bottom:8px;}
+  .hbar-lbl b{color:var(--text);}
+  .cat-row{display:flex; align-items:center; gap:10px; margin:7px 0; font-size:13.5px;}
+  .cat-row .nm{width:120px; color:var(--muted);}
+  .cat-row .tr{flex:1; height:8px; background:var(--panel); border-radius:4px; overflow:hidden;}
+  .cat-row .tr>div{height:100%; background:var(--violet); border-radius:4px;}
+  .cat-row .vl{width:90px; text-align:right; font-variant-numeric:tabular-nums;}
+  .empty{color:var(--faint); font-size:13.5px; padding:10px 2px; font-style:italic;}
+  .note{color:var(--faint); font-size:12.5px; line-height:1.7; margin-top:14px;}
+  .note b{color:var(--muted);}
+  .ord{display:flex; gap:4px;}
+  footer{margin-top:26px; color:var(--faint); font-size:12px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>BUDGET <span class="accent">TRACKER</span></h1>
+      <div class="sub">INCOME &middot; EXPENSES &middot; DEBTS &middot; NET WORTH</div>
+    </div>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="label">Net Worth</div><div class="big" id="bNetWorth">$—</div></div>
+    <div class="card"><div class="label">Monthly Cash Flow</div><div class="big" id="bCashFlow">—</div></div>
+    <div class="card"><div class="label">Total Assets</div><div class="big" id="bAssets">$—</div></div>
+    <div class="card"><div class="label">Total Debt</div><div class="big" id="bDebt">$—</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="label">Assets vs Debt</div>
+    <div class="hbar-lbl"><span><b style="color:var(--green)">●</b> Assets <b id="nwAssetsLbl">$—</b></span></div>
+    <div class="hbar"><div id="nwAssetsBar" style="background:var(--green);width:0%"></div></div>
+    <div class="hbar-lbl" style="margin-top:10px"><span><b style="color:var(--red)">●</b> Debt <b id="nwDebtLbl">$—</b></span></div>
+    <div class="hbar"><div id="nwDebtBar" style="background:var(--red);width:0%"></div></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="card section">
+        <h3>Income</h3>
+        <div class="form-row" style="margin-top:0">
+          <input class="num" id="incAmt" type="number" min="0" step="any" placeholder="0.00" style="width:140px">
+          <select id="incFreq">
+            <option value="weekly">per week</option>
+            <option value="biweekly">every 2 weeks</option>
+            <option value="monthly" selected>per month</option>
+            <option value="yearly">per year</option>
+          </select>
+        </div>
+        <div class="note" id="incMonthly" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card section">
+        <h3>Expenses</h3>
+        <div id="expList"></div>
+        <div class="form-row">
+          <input class="txt" id="expName" type="text" placeholder="e.g. Rent" maxlength="40">
+          <input class="num" id="expAmt" type="number" min="0" step="any" placeholder="$">
+          <select id="expFreq">
+            <option value="weekly">weekly</option>
+            <option value="monthly" selected>monthly</option>
+            <option value="yearly">yearly</option>
+          </select>
+          <select id="expCat">
+            <option>Housing</option><option>Food</option><option>Transport</option>
+            <option>Utilities</option><option>Insurance</option><option>Subscriptions</option>
+            <option>Health</option><option>Fun</option><option>Other</option>
+          </select>
+          <button id="expAdd">Add</button>
+        </div>
+        <div id="catBreak" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card section">
+        <h3>Debts — credit cards &amp; loans</h3>
+        <div class="note" style="margin:0 0 10px">Click a card to expand its transactions. Use ↑ ↓ to reorder.</div>
+        <div class="table-scroll" id="debtList"></div>
+        <div class="form-row">
+          <input class="txt" id="debtName" type="text" placeholder="e.g. Chase Sapphire" maxlength="40">
+          <select id="debtType"><option>Credit Card</option><option>Loan</option><option>Other</option></select>
+          <input class="num" id="debtBal" type="number" min="0" step="any" placeholder="balance $">
+          <input class="num" id="debtApr" type="number" min="0" step="any" placeholder="APR %" style="width:80px">
+          <input class="num" id="debtMin" type="number" min="0" step="any" placeholder="min pay $">
+          <button id="debtAdd">Add</button>
+        </div>
+      </div>
+
+      <div class="card section">
+        <h3>Assets</h3>
+        <div class="table-scroll" id="assetList"></div>
+        <div class="form-row">
+          <input class="txt" id="assetName" type="text" placeholder="e.g. Savings account" maxlength="40">
+          <input class="num" id="assetVal" type="number" min="0" step="any" placeholder="$">
+          <button id="assetAdd">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Everything you enter is stored only in this browser on this device — nothing is uploaded anywhere. Send this file to a friend and their numbers stay on their own device.</div>
+
+  <footer>Budget Tracker &middot; single-file edition</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var LS = "bt_file_v1";
+var state = {income:{amount:"", freq:"monthly"}, expenses:[], debts:[], assets:[]};
+try{ var s = JSON.parse(localStorage.getItem(LS)); if(s && typeof s==="object") state = Object.assign(state, s); }catch(e){}
+if(!state.income) state.income={amount:"",freq:"monthly"};
+if(!Array.isArray(state.expenses)) state.expenses=[];
+if(!Array.isArray(state.debts)) state.debts=[];
+if(!Array.isArray(state.assets)) state.assets=[];
+state.debts.forEach(function(d){ if(!Array.isArray(d.txns)) d.txns=[]; });
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function $(id){ return document.getElementById(id); }
+function fmt(n, d){ if(n==null||isNaN(n)) return "—"; return n.toLocaleString("en-US",{minimumFractionDigits:d==null?2:d, maximumFractionDigits:d==null?2:d}); }
+function money(n){ if(n==null||isNaN(n)) return "—"; var a=Math.abs(n); return (n<0?"−$":"$")+a.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function signed(n){ if(n==null||isNaN(n)) return "—"; return (n>0?"+":"") + fmt(n); }
+function cls(n){ return n>0?"up":(n<0?"down":"flat"); }
+function toMonthly(amt, freq){
+  amt=parseFloat(amt)||0;
+  if(freq==="weekly") return amt*52/12;
+  if(freq==="biweekly") return amt*26/12;
+  if(freq==="yearly") return amt/12;
+  return amt;
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function txnSum(d){ return (d.txns||[]).reduce(function(a,t){ return a+(parseFloat(t.amount)||0); },0); }
+function debtTotal(d){ return (parseFloat(d.balance)||0) + txnSum(d); }
+
+var expandedDebt = {};
+
+function totals(){
+  var mInc = toMonthly(state.income.amount, state.income.freq);
+  var mExp = state.expenses.reduce(function(a,e){ return a+toMonthly(e.amount,e.freq); },0);
+  var mDebtPay = state.debts.reduce(function(a,d){ return a+(parseFloat(d.minpay)||0); },0);
+  var debt = state.debts.reduce(function(a,d){ return a+debtTotal(d); },0);
+  var assets = state.assets.reduce(function(a,x){ return a+(parseFloat(x.value)||0); },0);
+  return {mInc:mInc, mExp:mExp, mDebtPay:mDebtPay, cash:mInc-mExp-mDebtPay,
+          debt:debt, assets:assets, net:assets-debt};
+}
+
+function move(arr, i, dir){
+  var j = i+dir;
+  if(j<0 || j>=arr.length) return;
+  var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
+  save(); render();
+}
+
+function render(){
+  var b=totals();
+  var nw=$("bNetWorth"); nw.textContent=money(b.net); nw.className="big "+cls(b.net);
+  var cf=$("bCashFlow"); cf.textContent=signed(b.cash)+" /mo"; cf.className="big "+cls(b.cash);
+  $("bAssets").textContent=money(b.assets);
+  var bd=$("bDebt"); bd.textContent=money(b.debt); bd.className="big "+(b.debt>0?"down":"flat");
+  var mx=Math.max(b.assets,b.debt,1);
+  $("nwAssetsBar").style.width=(b.assets/mx*100)+"%";
+  $("nwDebtBar").style.width=(b.debt/mx*100)+"%";
+  $("nwAssetsLbl").textContent=money(b.assets);
+  $("nwDebtLbl").textContent=money(b.debt);
+
+  $("incMonthly").innerHTML = state.income.amount
+    ? "≈ <b style='color:var(--text)'>"+money(toMonthly(state.income.amount,state.income.freq))+"</b> per month"
+    : "Enter your take-home pay above.";
+
+  var el=$("expList");
+  if(!state.expenses.length){ el.innerHTML='<div class="empty">No expenses yet — add your first one below.</div>'; }
+  else{
+    var h='<table class="mini"><thead><tr><th style="text-align:left">Name</th><th style="text-align:left">Category</th><th>Amount</th><th>/ month</th><th></th></tr></thead><tbody>';
+    state.expenses.forEach(function(e){
+      h+='<tr><td>'+esc(e.name)+'</td><td style="text-align:left"><span class="cname">'+esc(e.cat||"Other")+'</span></td>'+
+         '<td>'+money(e.amount)+'<span class="gl-sub">'+esc(e.freq)+'</span></td>'+
+         '<td>'+money(toMonthly(e.amount,e.freq))+'</td>'+
+         '<td><button class="ghost mini del" data-delexp="'+e.id+'">✕</button></td></tr>';
+    });
+    el.innerHTML=h+'</tbody></table>';
+  }
+  el.querySelectorAll("[data-delexp]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      state.expenses=state.expenses.filter(function(e){return e.id!==btn.dataset.delexp;});
+      save(); render();
+    });
+  });
+
+  var cats={};
+  state.expenses.forEach(function(e){ var c=e.cat||"Other"; cats[c]=(cats[c]||0)+toMonthly(e.amount,e.freq); });
+  var cb=$("catBreak"), keys=Object.keys(cats).sort(function(a,c){return cats[c]-cats[a];});
+  if(keys.length){
+    var mxc=cats[keys[0]]||1, ch='<div class="label" style="font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px">BY CATEGORY / MONTH</div>';
+    keys.forEach(function(k){
+      ch+='<div class="cat-row"><span class="nm">'+esc(k)+'</span><span class="tr"><div style="width:'+(cats[k]/mxc*100)+'%"></div></span><span class="vl">'+money(cats[k])+'</span></div>';
+    });
+    cb.innerHTML=ch;
+  } else cb.innerHTML="";
+
+  var dl=$("debtList");
+  if(!state.debts.length){ dl.innerHTML='<div class="empty">No cards or loans yet — add them below.</div>'; }
+  else{
+    var dh='<table class="mini"><thead><tr><th style="text-align:left">Name</th><th style="text-align:left">Type</th><th>Balance</th><th>APR</th><th>Min pay</th><th></th><th></th></tr></thead><tbody>';
+    state.debts.forEach(function(d,i){
+      var tot=debtTotal(d), txc=(d.txns||[]).length;
+      dh+='<tr class="drow" data-debtrow="'+d.id+'"><td><span style="font-weight:700">'+esc(d.name)+'</span>'+
+          (d.type==="Credit Card"?'<span class="gl-sub">▾ '+(expandedDebt[d.id]?"tap to collapse":"tap for transactions")+'</span>':"")+'</td>'+
+          '<td style="text-align:left"><span class="cname">'+esc(d.type)+'</span></td>'+
+          '<td style="color:var(--red)">'+money(tot)+(txc?'<span class="gl-sub">'+txc+' txn</span>':"")+'</td>'+
+          '<td>'+(d.apr?fmt(d.apr,2)+"%":"—")+'</td>'+
+          '<td>'+(d.minpay?money(d.minpay):"—")+'</td>'+
+          '<td><div class="ord"><button class="ghost mini" data-dmove="'+i+':-1" title="Move up">↑</button><button class="ghost mini" data-dmove="'+i+':1" title="Move down">↓</button></div></td>'+
+          '<td><button class="ghost mini del" data-deldebt="'+d.id+'">✕</button></td></tr>';
+      if(d.type==="Credit Card" && expandedDebt[d.id]){
+        var th='<tr class="txndrawer"><td colspan="7"><div class="txn-box"><h4>Transactions</h4>';
+        if(!txc){ th+='<div class="empty">No transactions yet.</div>'; }
+        (d.txns||[]).forEach(function(t){
+          th+='<div class="txn-row"><span class="d">'+esc(t.desc)+'</span><span class="a">'+money(t.amount)+'</span>'+
+              '<button class="ghost mini del" data-deltxn="'+d.id+':'+t.id+'">✕</button></div>';
+        });
+        th+='<h4>Add transaction</h4><div class="form-row" style="margin-top:0">'+
+            '<input class="txt" data-txndesc="'+d.id+'" type="text" placeholder="e.g. Groceries" maxlength="40">'+
+            '<input class="num" data-txn-amt="'+d.id+'" type="number" min="0" step="any" placeholder="$">'+
+            '<button data-txnadd="'+d.id+'">Add</button></div></div></td></tr>';
+        dh+=th;
+      }
+    });
+    dl.innerHTML=dh+'</tbody></table>';
+  }
+  dl.querySelectorAll("[data-debtrow]").forEach(function(row){
+    row.addEventListener("click",function(e){
+      if(e.target.tagName==="INPUT"||e.target.tagName==="BUTTON"||e.target.tagName==="SELECT") return;
+      var id=row.dataset.debtrow;
+      var d=state.debts.filter(function(x){return x.id===id;})[0];
+      if(!d || d.type!=="Credit Card") return;
+      expandedDebt[id]=!expandedDebt[id];
+      render();
+    });
+  });
+  dl.querySelectorAll("[data-dmove]").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      var p=btn.dataset.dmove.split(":"), i=parseInt(p[0],10), dir=parseInt(p[1],10);
+      move(state.debts,i,dir);
+    });
+  });
+  dl.querySelectorAll("[data-deldebt]").forEach(function(btn){
+    btn.addEventListener("click",function(e){
+      e.stopPropagation();
+      state.debts=state.debts.filter(function(d){return d.id!==btn.dataset.deldebt;});
+      save(); render();
+    });
+  });
+  dl.querySelectorAll("[data-deltxn]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var p=btn.dataset.deltxn.split(":");
+      var d=state.debts.filter(function(x){return x.id===p[0];})[0];
+      if(!d) return;
+      if(!confirm("Delete this transaction? The amount will be subtracted from the card balance.")) return;
+      d.txns=(d.txns||[]).filter(function(t){return t.id!==p[1];});
+      save(); render();
+    });
+  });
+  dl.querySelectorAll("[data-txnadd]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var id=btn.dataset.txnadd;
+      var d=state.debts.filter(function(x){return x.id===id;})[0];
+      if(!d) return;
+      var descEl=dl.querySelector('[data-txndesc="'+id+'"]');
+      var amtEl=dl.querySelector('[data-txn-amt="'+id+'"]');
+      var desc=descEl?descEl.value.trim():"", amt=amtEl?parseFloat(amtEl.value):NaN;
+      if(!desc||isNaN(amt)||amt<=0) return;
+      d.txns.push({id:uid(), desc:desc, amount:amt});
+      save(); render();
+    });
+  });
+
+  var al=$("assetList");
+  if(!state.assets.length){ al.innerHTML='<div class="empty">None yet — e.g. savings, car, home equity.</div>'; }
+  else{
+    var ah='<table class="mini"><thead><tr><th style="text-align:left">Name</th><th>Value</th><th></th><th></th></tr></thead><tbody>';
+    state.assets.forEach(function(a,i){
+      ah+='<tr><td>'+esc(a.name)+'</td><td style="color:var(--green)">'+money(a.value)+'</td>'+
+          '<td><div class="ord"><button class="ghost mini" data-amove="'+i+':-1" title="Move up">↑</button><button class="ghost mini" data-amove="'+i+':1" title="Move down">↓</button></div></td>'+
+          '<td><button class="ghost mini del" data-delasset="'+a.id+'">✕</button></td></tr>';
+    });
+    al.innerHTML=ah+'</tbody></table>';
+  }
+  al.querySelectorAll("[data-amove]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var p=btn.dataset.amove.split(":"), i=parseInt(p[0],10), dir=parseInt(p[1],10);
+      move(state.assets,i,dir);
+    });
+  });
+  al.querySelectorAll("[data-delasset]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      state.assets=state.assets.filter(function(a){return a.id!==btn.dataset.delasset;});
+      save(); render();
+    });
+  });
+}
+
+$("incAmt").value = state.income.amount||"";
+$("incFreq").value = state.income.freq||"monthly";
+$("incAmt").addEventListener("change",function(){ state.income.amount=$("incAmt").value; save(); render(); });
+$("incFreq").addEventListener("change",function(){ state.income.freq=$("incFreq").value; save(); render(); });
+$("expAdd").addEventListener("click",function(){
+  var n=$("expName").value.trim(), a=parseFloat($("expAmt").value);
+  if(!n||isNaN(a)||a<=0) return;
+  state.expenses.push({id:uid(), name:n, amount:a, freq:$("expFreq").value, cat:$("expCat").value});
+  $("expName").value=""; $("expAmt").value=""; save(); render();
+});
+$("debtAdd").addEventListener("click",function(){
+  var n=$("debtName").value.trim(), b=parseFloat($("debtBal").value);
+  if(!n||isNaN(b)||b<0) return;
+  state.debts.push({id:uid(), name:n, type:$("debtType").value, balance:b, txns:[],
+    apr:parseFloat($("debtApr").value)||"", minpay:parseFloat($("debtMin").value)||""});
+  ["debtName","debtBal","debtApr","debtMin"].forEach(function(id){$(id).value="";});
+  save(); render();
+});
+$("assetAdd").addEventListener("click",function(){
+  var n=$("assetName").value.trim(), v=parseFloat($("assetVal").value);
+  if(!n||isNaN(v)||v<0) return;
+  state.assets.push({id:uid(), name:n, value:v});
+  $("assetName").value=""; $("assetVal").value=""; save(); render();
+});
+
+render();
+})();
+</script>
+</body>
+</html>
