@@ -44,6 +44,13 @@ Assets → open an investing account → **Upload CSV**.
 Tip: cost basis may come per-share ("Average Cost") or as a total
 ("Cost Basis Total") — both are handled.
 
+## Debt payments
+
+In the Debts tab, click any credit card **or loan** to expand it. Credit
+cards have Transactions and Payments tabs; loans open a payment panel
+directly. Logging a payment lowers that debt's balance (and the totals
+everywhere); deleting the payment restores it.
+
 ## Deploy to GitHub Pages
 
 1. Push this folder's contents to a GitHub repo (repo root).

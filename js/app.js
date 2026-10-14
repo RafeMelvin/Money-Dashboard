@@ -24,6 +24,7 @@ function pnum(v){if(v==null)return 0;var n=parseFloat(String(v).replace(/,/g,"")
 function fmt(n,d){if(n==null||isNaN(n)||!isFinite(n))return "—";return n.toLocaleString("en-US",{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d});}
 function money(n){if(n==null||isNaN(n)||!isFinite(n))return "—";var a=Math.abs(n);return(n<0?"−$":"$")+a.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function signed(n){if(n==null||isNaN(n)||!isFinite(n))return "—";return(n>0?"+":"")+fmt(n);}
+function signedMoney(n){if(n==null||isNaN(n)||!isFinite(n))return "—";return(n>0?"+":"")+money(n);}
 function cls(n){return n>0?"up":(n<0?"down":"flat");}
 function toMonthly(amt,freq){amt=pnum(amt);if(freq==="weekly")return amt*52/12;if(freq==="biweekly")return amt*26/12;if(freq==="yearly")return amt/12;return amt;}
 function txnSum(d){return(d.txns||[]).reduce(function(a,t){return a+pnum(t.amount);},0);}
@@ -347,9 +348,20 @@ function renderExpenses(){
 }
 
 /* ---------- debts ---------- */
+/* Payment panel shared by the credit-card Payments tab and expandable loan rows. */
+function paymentPanelHTML(d){
+  var pays=d.payments||[];
+  var th='<h4>Payments made</h4>';
+  if(!pays.length)th+='<div class="empty">No payments logged yet.</div>';
+  pays.forEach(function(p){th+='<div class="txn-row"><span class="d">'+esc(p.desc||"Payment")+'<span class="gl-sub">'+esc(p.date||"")+'</span></span><span class="a" style="color:var(--green)">−'+money(p.amount)+'</span><button class="ghost mini del" data-delpay="'+d.id+':'+p.id+'">✕</button></div>';});
+  th+='<h4>Log a payment</h4><div class="form-row" style="margin-top:0"><input class="txt" data-paydesc="'+d.id+'" type="text" placeholder="e.g. Monthly payment" maxlength="40">'+
+      '<input class="num" data-payamt="'+d.id+'" type="text" inputmode="decimal" placeholder="$">'+
+      '<input type="date" data-paydate="'+d.id+'" value="'+new Date().toISOString().slice(0,10)+'"><button data-payadd="'+d.id+'">Add</button></div>';
+  return th;
+}
 function renderDebts(){
   var el=$("view-debts"),h='<div class="card section"><h3>Debts — credit cards &amp; loans</h3>'+
-    '<div class="note" style="margin:0 0 10px">Click a credit card to expand its transactions. Use ↑ ↓ to reorder.</div><div class="table-scroll" id="debtList2"></div>'+
+    '<div class="note" style="margin:0 0 10px">Click a card or loan to expand it. Use ↑ ↓ to reorder.</div><div class="table-scroll" id="debtList2"></div>'+
     '<div class="form-row"><input class="txt" id="debtName2" type="text" placeholder="e.g. Chase Sapphire" maxlength="40">'+
     '<select id="debtType2"><option>Credit Card</option><option>Loan</option><option>Other</option></select>'+
     '<input class="num" id="debtBal2" type="text" inputmode="decimal" placeholder="balance $">'+
@@ -361,11 +373,11 @@ function renderDebts(){
   if(!state.debts.length)dl.innerHTML='<div class="empty">No cards or loans yet.</div>';
   else{var dh='<table class="mini"><thead><tr><th style="text-align:left">Name</th><th style="text-align:left">Type</th><th>Balance</th><th>APR</th><th>Min pay</th><th></th><th></th></tr></thead><tbody>';
     state.debts.forEach(function(d,i){
-      var tot=debtTotal(d),txc=(d.txns||[]).length;
+      var tot=debtTotal(d),txc=(d.txns||[]).length,isCard=d.type==="Credit Card",payc=(d.payments||[]).length;
       dh+='<tr class="drow" data-debtrow="'+d.id+'"><td><span style="font-weight:700">'+esc(d.name)+'</span>'+
-        (d.type==="Credit Card"?'<span class="gl-sub">▾ '+(expanded[d.id]?"tap to collapse":"tap for transactions")+'</span>':"")+'</td>'+
+        '<span class="gl-sub">▾ '+(expanded[d.id]?"tap to collapse":(isCard?"tap for transactions":"tap for payments"))+'</span></td>'+
         '<td style="text-align:left"><span class="cname">'+esc(d.type)+'</span></td>'+
-        '<td style="color:var(--red)">'+money(tot)+(txc?'<span class="gl-sub">'+txc+' txn</span>':"")+'</td>'+
+        '<td style="color:var(--red)">'+money(tot)+(txc?'<span class="gl-sub">'+txc+' txn</span>':"")+(payc&&!isCard?'<span class="gl-sub">'+payc+' payment'+(payc>1?"s":"")+'</span>':"")+'</td>'+
         '<td>'+(d.apr?fmt(pnum(d.apr),2)+"%":"—")+'</td><td>'+(d.minpay?money(d.minpay):"—")+'</td>'+
         '<td><div class="ord"><button class="ghost mini" data-dmove="'+i+':-1">↑</button><button class="ghost mini" data-dmove="'+i+':1">↓</button></div></td>'+
         '<td><button class="ghost mini del" data-deldebt="'+d.id+'">✕</button></td></tr>';
@@ -381,23 +393,20 @@ function renderDebts(){
           th+='<h4>Add transaction</h4><div class="form-row" style="margin-top:0"><input class="txt" data-txndesc="'+d.id+'" type="text" placeholder="e.g. Groceries" maxlength="40">'+
               '<input class="num" data-txn-amt="'+d.id+'" type="text" inputmode="decimal" placeholder="$"><button data-txnadd="'+d.id+'">Add</button></div>';
         }else{
-          var pays=d.payments||[];
-          th+='<h4>Payments made</h4>';
-          if(!pays.length)th+='<div class="empty">No payments logged yet.</div>';
-          pays.forEach(function(p){th+='<div class="txn-row"><span class="d">'+esc(p.desc||"Payment")+'<span class="gl-sub">'+esc(p.date||"")+'</span></span><span class="a" style="color:var(--green)">−'+money(p.amount)+'</span><button class="ghost mini del" data-delpay="'+d.id+':'+p.id+'">✕</button></div>';});
-          th+='<h4>Log a payment</h4><div class="form-row" style="margin-top:0"><input class="txt" data-paydesc="'+d.id+'" type="text" placeholder="e.g. Monthly payment" maxlength="40">'+
-              '<input class="num" data-payamt="'+d.id+'" type="text" inputmode="decimal" placeholder="$">'+
-              '<input type="date" data-paydate="'+d.id+'" value="'+new Date().toISOString().slice(0,10)+'"><button data-payadd="'+d.id+'">Add</button></div>';
+          th+=paymentPanelHTML(d);
         }
         th+='</div></td></tr>';
         dh+=th;
+      }
+      else if(expanded[d.id]){
+        dh+='<tr class="txndrawer"><td colspan="7"><div class="txn-box">'+paymentPanelHTML(d)+'</div></td></tr>';
       }
     });
     dl.innerHTML=dh+'</tbody></table>';}
   dl.querySelectorAll("[data-debtrow]").forEach(function(row){row.addEventListener("click",function(e){
     if(e.target.tagName==="INPUT"||e.target.tagName==="BUTTON"||e.target.tagName==="SELECT")return;
     var id=row.dataset.debtrow,d=state.debts.filter(function(x){return x.id===id;})[0];
-    if(!d||d.type!=="Credit Card")return;expanded[id]=!expanded[id];render();});});
+    if(!d)return;expanded[id]=!expanded[id];render();});});
   dl.querySelectorAll("[data-dmove]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();
     var p=b.dataset.dmove.split(":"),i=parseInt(p[0],10),j=i+parseInt(p[1],10);
     if(j<0||j>=state.debts.length)return;var t=state.debts[i];state.debts[i]=state.debts[j];state.debts[j]=t;save();render();});});
@@ -426,7 +435,7 @@ function renderDebts(){
   $("debtAdd2").addEventListener("click",function(){
     var n=$("debtName2").value.trim(),b=pnum($("debtBal2").value);
     if(!n||b<0||isNaN(b))return;
-    state.debts.push({id:uid(),name:n,type:$("debtType2").value,balance:b,txns:[],apr:$("debtApr2").value,minpay:$("debtMin2").value});
+    state.debts.push({id:uid(),name:n,type:$("debtType2").value,balance:b,txns:[],payments:[],apr:$("debtApr2").value,minpay:$("debtMin2").value});
     ["debtName2","debtBal2","debtApr2","debtMin2"].forEach(function(id){$(id).value="";});save();render();});
 }
 
@@ -510,9 +519,10 @@ function renderAssets(){
         hs.forEach(function(x){
           var v=holdingVal(x),c=holdingCost(x),g=v-c,gp=c?g/c*100:0,dv=pnum(x.div)*pnum(x.shares);
           var dg=dayGain(x),dgp=dayGainPct(x),hk="h_"+a.id+"_"+x.id,live=priceSrc(x)==="live";
-          ih+='<tr data-hrow="'+a.id+':'+x.id+'"><td><b>'+esc(x.ticker)+'</b><span class="gl-sub">'+money(v)+' total · '+esc(x.shares)+' sh</span><span class="m-toggle"> · View details</span><br><span class="livechip'+(live?" on":"")+'" data-livechip="'+a.id+':'+x.id+'" title="Click to toggle live/manual price">'+(live?"live · "+BTQuotes.ageText(x.ticker):"manual")+'</span></td>'+
+          var dayStr=(dg==null)?"—":signedMoney(dg)+(dgp==null?"":" ("+signed(dgp)+"%)");
+          ih+='<tr data-hrow="'+a.id+':'+x.id+'"><td><b>'+esc(x.ticker)+'</b> <span style="color:#fff">'+money(v)+' total</span> <span class="'+(dg==null?"":cls(dg))+'">'+dayStr+'</span><span class="gl-sub"> · '+esc(x.shares)+' sh</span><span class="m-toggle"> · View details</span><br><span class="livechip'+(live?" on":"")+'" data-livechip="'+a.id+':'+x.id+'" title="Click to toggle live/manual price">'+(live?"live · "+BTQuotes.ageText(x.ticker):"manual")+'</span></td>'+
             '<td style="color:#fff">'+money(v)+'</td>'+
-            '<td class="col-detail '+(dg==null?"":cls(dg))+'">'+(dg==null?"—":signed(dg))+'</td>'+
+            '<td class="col-detail '+(dg==null?"":cls(dg))+'">'+(dg==null?"—":signedMoney(dg))+'</td>'+
             '<td class="col-detail '+(dgp==null?"":cls(dgp))+'">'+(dgp==null?"—":signed(dgp)+"%")+'</td>'+
             '<td class="col-detail '+cls(g)+'">'+signed(g)+'</td><td class="col-detail '+cls(gp)+'">'+signed(gp)+'%</td>'+
             '<td class="col-detail">'+(dv?money(dv)+'<span class="gl-sub">/ yr</span>':"—")+'</td>'+
@@ -520,7 +530,7 @@ function renderAssets(){
             '<td><button class="ghost mini del" data-delh="'+a.id+':'+x.id+'">✕</button></td></tr>';
           if(expanded[hk]){
             ih+='<tr class="m-details open"><td colspan="9">'+
-              '<div class="kv"><span class="k">Day gain / loss</span><span class="v '+(dg==null?"":cls(dg))+'">'+(dg==null?"—":signed(dg)+(dgp==null?"":" ("+signed(dgp)+"%)"))+'</span></div>'+
+              '<div class="kv"><span class="k">Day gain / loss</span><span class="v '+(dg==null?"":cls(dg))+'">'+dayStr+'</span></div>'+
               '<div class="kv"><span class="k">Gain / loss total</span><span class="v '+cls(g)+'">'+signed(g)+'</span></div>'+
               '<div class="kv"><span class="k">Gain / loss %</span><span class="v '+cls(gp)+'">'+signed(gp)+'%</span></div>'+
               '<div class="kv"><span class="k">Current value</span><span class="v">'+money(v)+'</span></div>'+
